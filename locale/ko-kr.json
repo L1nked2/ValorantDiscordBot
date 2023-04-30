@@ -1,0 +1,7 @@
+{
+  "commands": {
+    "login": "로그인",
+    "accounts": "계정목록",
+    "store": "상점"
+  }
+}
