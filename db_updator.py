@@ -1,7 +1,13 @@
-import urllib.request, json
+import urllib.request, json, os
 
-if __name__ == '__main__':
+def update_weapons(lang='ko-KR'):
   with urllib.request.urlopen("https://valorant-api.com/v1/weapons?language=ko-KR") as url:
       data = json.load(url)['data']
-      with open('./db/weapons_kr.json', 'w', encoding='utf-8') as f:
+      path = os.path.join('.','db','weapons_kr.json')
+      with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False)
+
+if __name__ == '__main__':
+  update_weapons()
+  
+  
