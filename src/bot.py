@@ -10,7 +10,7 @@ from .translator import Translator
 # discord bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix='/', intents=intents, help_command=None)
+bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
 # auth dictionary, {discord_id: {riot_id: UserInfo}}
 # saved on every hour
@@ -58,12 +58,22 @@ async def set_user_db():
 @tasks.loop(minutes=15)
 async def reauthorize_and_save_user_info():
     global auths
+    drops = list[tuple[str,str]]
+    drops = list()
     for discord_id, auth in auths.items():
       for riot_id, user_info in auth.items():
         res = await user_info.reauthorize()
-        # reauthorization failed, drop user info
+        # reauthorization failed, save user info to drop
         if not res:
-          del auths[discord_id][riot_id]
+          drops.append((discord_id,riot_id))
+    
+    # drop user info that are not authorized
+    for discord_id, riot_id in drops:
+      del auths[discord_id][riot_id]
+    # db cleanup
+    for discord_id, auth in auths.items():
+      if not bool(auth):
+        del auths[discord_id]
 
     await set_user_db()
     print('reauthorize and save done')
@@ -72,13 +82,13 @@ async def reauthorize_and_save_user_info():
 async def on_ready():
     print(f'Login bot: {bot.user}')
     await get_user_db()
-    await bot.change_presence(activity=discord.Game(name="/help | /도움"))
+    await bot.change_presence(activity=discord.Game(name="!help | !도움"))
     reauthorize_and_save_user_info.start()
 
 # TODO: update documentation
 @bot.command(aliases=translator.get_command_aliases('help'))
 async def help(ctx):
-    help_text = f'```\n/login id password\n/로그인 id password\n/logout id\n/로그아웃 id\n/accounts\n/계정목록\n/store\n/상점\n```'
+    help_text = f'```\n!login id password\n!로그인 id password\n\n!logout id\n!로그아웃 id\n\n!accounts\n!계정목록\n\n!store\n!상점\n```'
     await ctx.channel.send(f'{help_text}')
 
 
@@ -123,7 +133,7 @@ async def store(ctx):
       user_info_dict = auths[ctx.author.id]
       storefronts = await fetcher.fetch_store(user_info_dict)
       for nickname, item_uuid in storefronts.items():
-        await ctx.channel.send(f'{nickname}')
+        header = f'{nickname}'
         storefront = item_uuid["SkinsPanelLayout"]["SingleItemOffers"]
         costs = list()
         for offers in item_uuid["SkinsPanelLayout"]["SingleItemStoreOffers"]:
@@ -136,7 +146,7 @@ async def store(ctx):
           embed=discord.Embed(title=weapon_info['displayName'], url=weapon_info['streamedVideo'], description=cost, color=0x40e243)
           embed.set_thumbnail(url=weapon_info['displayIcon'])
           embeds.append(embed)
-        await ctx.send(embeds=embeds)
+        await ctx.send(content=header, embeds=embeds)
     except KeyError:
       await ctx.channel.send(f'{ctx.author} no accounts available')
 
