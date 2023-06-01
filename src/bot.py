@@ -4,7 +4,7 @@ from discord.ext import commands
 from discord.ext import tasks
 import os
 import dill
-from .valstore import ValStoreFetcher, UserInfo, get_weapon_info
+from .valstore import ValStoreFetcher, UserInfo, get_weapon_info, set_riot_client_version
 from .translator import Translator
 
 # discord bot
@@ -55,8 +55,9 @@ async def set_user_db():
       dill.dump(data, f)
 
 # reauthorize and save user info every hour
-@tasks.loop(minutes=15)
+@tasks.loop(minutes=60)
 async def reauthorize_and_save_user_info():
+    set_riot_client_version()
     global auths
     drops = list[tuple[str,str]]
     drops = list()
@@ -71,9 +72,12 @@ async def reauthorize_and_save_user_info():
     for discord_id, riot_id in drops:
       del auths[discord_id][riot_id]
     # db cleanup
+    drops = list()
     for discord_id, auth in auths.items():
       if not bool(auth):
-        del auths[discord_id]
+        drops.append(discord_id)
+    for discord_id in drops:
+      del auths[discord_id]
 
     await set_user_db()
     print('reauthorize and save done')
@@ -111,6 +115,8 @@ async def login(ctx, id, password):
 async def logout(ctx, id):
     try:
       del auths[ctx.author.id][id]
+      if not bool(auths[ctx.author.id]):
+        del auths[ctx.author.id]
       await ctx.channel.send(f'logout successful')
     except:
       await ctx.channel.send(f'logout failed, check your id')
@@ -132,8 +138,10 @@ async def store(ctx):
     try:
       user_info_dict = auths[ctx.author.id]
       storefronts = await fetcher.fetch_store(user_info_dict)
+      nicknames = list()
       for nickname, item_uuid in storefronts.items():
         header = f'{nickname}'
+        nicknames.append(f'{nickname}')
         storefront = item_uuid["SkinsPanelLayout"]["SingleItemOffers"]
         costs = list()
         for offers in item_uuid["SkinsPanelLayout"]["SingleItemStoreOffers"]:
@@ -147,6 +155,7 @@ async def store(ctx):
           embed.set_thumbnail(url=weapon_info['displayIcon'])
           embeds.append(embed)
         await ctx.send(content=header, embeds=embeds)
+      print(f'{nicknames} visited store')
     except KeyError:
       await ctx.channel.send(f'{ctx.author} no accounts available')
 

@@ -7,12 +7,13 @@ import requests
 import json
 import urllib
 
-# set riot client version
-with urllib.request.urlopen("https://valorant-api.com/v1/version") as url:
-  riot_client_build = json.load(url)['data']['riotClientBuild']
-  RiotAuth.RIOT_CLIENT_USER_AGENT = f'{riot_client_build} %s (Windows;10;;Professional, x64)'
-
 USERINFO_URL = f'https://auth.riotgames.com/userinfo'
+
+# set riot client version
+def set_riot_client_version():
+  with urllib.request.urlopen("https://valorant-api.com/v1/version") as url:
+    riot_client_build = json.load(url)['data']['riotClientBuild']
+  RiotAuth.RIOT_CLIENT_USER_AGENT = f'{riot_client_build} %s (Windows;10;;Professional, x64)'
 
 # translate item uuid to name and icons
 def get_weapon_info(uuid):
